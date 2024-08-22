@@ -1,4 +1,4 @@
-<?php namespace Mercator\Passwordless;
+<?php namespace Brutalhost\Passwordless;
 
 use System\Classes\PluginBase;
 
@@ -13,10 +13,10 @@ class Plugin extends PluginBase
     public function componentDetails()
     {
         return [
-            'name'        => 'mercator.passwordless::lang.plugin.name',
-            'description' => 'mercator.passwordless::lang.plugin.description',
+            'name'        => 'brutalhost.passwordless::lang.plugin.name',
+            'description' => 'brutalhost.passwordless::lang.plugin.description',
             'icon'        => 'wn-icon-key',
-            'homepage'    => 'https://github.com/mercator/wn-passwordless-plugin'
+            'homepage'    => 'https://github.com/brutalhost/wn-passwordless-plugin'
         ];
     }
 
@@ -27,7 +27,7 @@ class Plugin extends PluginBase
     public function registerComponents()
     {
         return [
-            'Mercator\Passwordless\Components\Account' => 'passwordlessAccount'
+            'Brutalhost\Passwordless\Components\Account' => 'passwordlessAccount'
         ];
     }
 
@@ -38,14 +38,14 @@ class Plugin extends PluginBase
     public function registerMailTemplates()
     {
         return [
-            'mercator.passwordless::mail.login' => 'Passwordless login'
+            'brutalhost.passwordless::mail.login' => 'Passwordless login'
         ];
     }
 
     public function registerSchedule($schedule)
     {
         $schedule->call(function () {
-            \Mercator\Passwordless\Models\Token::clearExpired();
+            \Brutalhost\Passwordless\Models\Token::clearExpired();
         })->daily();
     }
 }

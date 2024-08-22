@@ -1,4 +1,4 @@
-<?php namespace Mercator\Passwordless\Updates;
+<?php namespace Brutalhost\Passwordless\Updates;
 
 use Schema;
 use Winter\Storm\Database\Updates\Migration;
@@ -12,7 +12,7 @@ class CreateLoginTokensTable extends Migration
      */
     public function up()
     {
-        Schema::create('mercator_passwordless_tokens', function ($table) {
+        Schema::create('brutalhost_passwordless_tokens', function ($table) {
             $table->increments('id');
             $table->integer('user_id');
             $table->string('user_type');
@@ -31,6 +31,6 @@ class CreateLoginTokensTable extends Migration
      */
     public function down()
     {
-        Schema::drop('mercator_passwordless_tokens');
+        Schema::drop('brutalhost_passwordless_tokens');
     }
 }

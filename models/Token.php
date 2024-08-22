@@ -1,6 +1,6 @@
 <?php
 
-namespace Mercator\Passwordless\Models;
+namespace Brutalhost\Passwordless\Models;
 
 use Model;
 use Hash;
@@ -13,7 +13,7 @@ class Token extends Model
     /**
      * @var string The database table used by the model.
      */
-    public $table = 'mercator_passwordless_tokens';
+    public $table = 'brutalhost_passwordless_tokens';
 
     /**
      * Fillable fields for the model.

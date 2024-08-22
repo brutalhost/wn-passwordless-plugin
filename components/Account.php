@@ -1,10 +1,10 @@
 <?php
 
-namespace Mercator\Passwordless\Components;
+namespace Brutalhost\Passwordless\Components;
 
 use Cms\Classes\ComponentBase;
 use Winter\Storm\Exception\ApplicationException;
-use Mercator\Passwordless\Models\Token;
+use Brutalhost\Passwordless\Models\Token;
 use Cms\Classes\Page;
 use Input;
 use Cookie;
@@ -63,7 +63,7 @@ class Account extends ComponentBase
                 'title' => 'Login mail template',
                 'description' => 'The mail template that will be send to the user',
                 'type' => 'string',
-                'default' => 'mercator.passwordless::mail.login'
+                'default' => 'brutalhost.passwordless::mail.login'
             ],
             'redirect' => [
                 'title'       => 'Redirect to',

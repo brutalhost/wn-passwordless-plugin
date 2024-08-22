@@ -1,11 +1,11 @@
 <?php
 
-namespace Mercator\Passwordless\Classes;
+namespace Brutalhost\Passwordless\Classes;
 
 use Cookie;
 use Closure;
 use Response;
-use Mercator\Passwordless\Models\Token;
+use Brutalhost\Passwordless\Models\Token;
 use Winter\Storm\Exception\ApplicationException;
 
 class CookieTokenAuth
