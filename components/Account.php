@@ -239,9 +239,9 @@ class Account extends ComponentBase
      */
     public function onRequestLogin() {
 
-        // Validate the email
-        $email = ['email' => Input::get('email')];
-        $validator = Validator::make($email, ['email' => 'required|email']);
+        $rules = ['email' => 'required|email'];
+        $rules = $this->fireEvent('login_form_rules', [$rules])[0];
+        $validator = Validator::make(Input::only(array_keys($rules)), $rules);
         if ($validator->fails()) {
             return Redirect::to($this->currentPageUrl())->withErrors($validator);
         }
