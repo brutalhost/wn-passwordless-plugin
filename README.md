@@ -1,13 +1,30 @@
 # Passwordless Login
-This plugin brings passwordless user authentication to WinterCMS. 
-Instead of filling username and password, frontend users provide their email address and receive a link with login 
-token that registers and authenticates them on the site. Passwordless authentication is 
-[secure](https://auth0.com/blog/is-passwordless-authentication-more-secure-than-passwords/) 
-and can greatly improve the user experience as it simplifies the registration and login process where many users 
+This plugin brings passwordless user authentication to WinterCMS.
+Instead of filling username and password, frontend users provide their email address and receive a link with login
+token that registers and authenticates them on the site. Passwordless authentication is
+[secure](https://auth0.com/blog/is-passwordless-authentication-more-secure-than-passwords/)
+and can greatly improve the user experience as it simplifies the registration and login process where many users
 dread having to fill out forms and go through a rigorous registration process.
 
 The plugin is based in [October's Passwordless Login](https://github.com/nocio/oc-passwordless-plugin/blob/master/models/Token.php)
-with slight adaptations. 
+with slight adaptations.
+
+# Brutalhost - new features by me
+- Supports the latest version of Winter CMS, PHP 8 and above
+- A settings page has been added, allowing you to specify the lifespan of the token sent via email link.
+- You can add additional fields to the form that will be processed after the email is validated. This is primarily useful for implementing CAPTCHA. For example:
+```php
+use Brutalhost\YandexSmartcaptcha\Classes\Rules\YandexCaptcha;
+
+function onInit()
+{
+    $this['passwordlessAccount']->bindEvent('login_form_rules', function () {
+        return ['smart-token' => ['required', new YandexCaptcha]];
+    });
+}
+```
+- The email content has been modified (the token lifetime is automatically substituted from the settings).
+
 
 ## Features
 
@@ -31,7 +48,7 @@ php artisan winter:up
 ## The Account component
 
 
-The plugin provides an *Account* component that is similiar to Winter.User's account component. 
+The plugin provides an *Account* component that is similiar to Winter.User's account component.
 The account component provides the main functionality and can be included in any CMS page that should serve as login endpoint.
 
 The Account component has the following properties:
@@ -80,19 +97,7 @@ If enabled, the Account component exposes and JSON API endpoint that can be cons
 
 The plugin provides a token model ``Brutalhost\Passwordless\Models\Token`` that can be re-used by developers to implement token management. The model provides two main functions:
 
-- ``generate($user, $expires = 10, $scope = 'default')`` which returns a token for a given ``$user`` model object (or more general the token payload). Make sure to specificy a custom scope, e.g. `myplugin` to avoid scope collision.
+- ``generate($user, $expires = null, $scope = 'default')`` which returns a token for a given ``$user`` model object (or more general the token payload). Make sure to specificy a custom scope, e.g. `myplugin` to avoid scope collision.
 - ``parse($raw_token, $delete = false, $scope = null)`` which parses (and optionally ``$delete``s) a provided ``$raw_token`` in a given ``$scope`` and returns the correspoding ``$user`` model. It raises an ``ApplicationException`` if the token is expired, invalid or cannot be parsed.
 
 More details can be found in the [model class documentation](https://github.com/helmutkaufmann/wn-passwordless-plugin/blob/master/models/Token.php).
-
-## Additional information
-
-In future, the plugin might be extended to allow for
-
-- Option to allow for change of email
-- Improved JSON API
-- Support stateless JWT-based authentication
-- Backend logins
-- ...
-
-**Please consider donating to support the ongoing development if you find this plugin useful.**

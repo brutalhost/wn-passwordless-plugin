@@ -1,0 +1,6 @@
+fields:
+    token_expiration:
+        label: Token Expiration (minutes)
+        comment: The duration for which a token can be used for system login.
+        type: text
+        default: 30

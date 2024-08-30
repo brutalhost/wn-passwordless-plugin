@@ -2,10 +2,8 @@
 
 use System\Classes\PluginBase;
 
-
 class Plugin extends PluginBase
 {
-
     /**
      * Component details
      * @return array
@@ -13,10 +11,10 @@ class Plugin extends PluginBase
     public function componentDetails()
     {
         return [
-            'name'        => 'brutalhost.passwordless::lang.plugin.name',
+            'name' => 'brutalhost.passwordless::lang.plugin.name',
             'description' => 'brutalhost.passwordless::lang.plugin.description',
-            'icon'        => 'wn-icon-key',
-            'homepage'    => 'https://github.com/brutalhost/wn-passwordless-plugin'
+            'icon' => 'wn-icon-key', // Подходит для функциональности "без пароля"
+            'homepage' => 'https://github.com/brutalhost/wn-passwordless-plugin'
         ];
     }
 
@@ -28,6 +26,20 @@ class Plugin extends PluginBase
     {
         return [
             'Brutalhost\Passwordless\Components\Account' => 'passwordlessAccount'
+        ];
+    }
+
+    public function registerSettings()
+    {
+        return [
+            'settings' => [
+                'label' => 'brutalhost.passwordless::lang.settings.label',
+                'description' => 'brutalhost.passwordless::lang.settings.description',
+                'icon' => 'wn-icon-key', // Меняем иконку на "замок" для безопасности и настроек
+                'category' => 'system::lang.system.categories.users',
+                'class' => 'Brutalhost\Passwordless\Models\Settings',
+                'order' => 1000
+            ]
         ];
     }
 
@@ -46,6 +58,6 @@ class Plugin extends PluginBase
     {
         $schedule->call(function () {
             \Brutalhost\Passwordless\Models\Token::clearExpired();
-        })->daily();
+        })->everyMinute();
     }
 }

@@ -2,16 +2,24 @@
 
 namespace Brutalhost\Passwordless\Components;
 
+use Brutalhost\Passwordless\Models\Settings;
 use Cms\Classes\ComponentBase;
+use Illuminate\Support\Carbon;
 use Winter\Storm\Exception\ApplicationException;
 use Brutalhost\Passwordless\Models\Token;
 use Cms\Classes\Page;
-use Input;
+
+//use Input;
 use Cookie;
 use Redirect;
 use Validator;
 use Mail;
 use Response;
+use Winter\Storm\Exception\ValidationException;
+use Winter\Storm\Support\Facades\Flash;
+use Winter\Storm\Support\Facades\Input;
+use Winter\Storm\Support\Str;
+use Winter\User\Models\User;
 
 class Account extends ComponentBase
 {
@@ -66,10 +74,10 @@ class Account extends ComponentBase
                 'default' => 'brutalhost.passwordless::mail.login'
             ],
             'redirect' => [
-                'title'       => 'Redirect to',
+                'title' => 'Redirect to',
                 'description' => 'Page name to redirect to after sign in',
-                'type'        => 'dropdown',
-                'default'     => '',
+                'type' => 'dropdown',
+                'default' => '',
                 'graphql' => false
             ],
             'allow_registration' => [
@@ -90,10 +98,11 @@ class Account extends ComponentBase
 
     public function getRedirectOptions()
     {
-        return [''=>'- refresh page -', '0' => '- no redirect -'] + Page::sortBy('baseFileName')->lists('baseFileName', 'url');
+        return ['' => '- refresh page -', '0' => '- no redirect -'] + Page::sortBy('baseFileName')->lists('baseFileName', 'url');
     }
 
-    public function init() {
+    public function init()
+    {
         $this->auth = $this->property('auth');
         if (!class_exists($this->auth)) {
             throw new ApplicationException(
@@ -111,7 +120,8 @@ class Account extends ComponentBase
         }
     }
 
-    public function onRun() {
+    public function onRun()
+    {
         if ($response = $this->api()) {
             return $response;
         }
@@ -127,26 +137,33 @@ class Account extends ComponentBase
         $this->page['user'] = $this->user();
     }
 
-    public function login() {
+    public function login()
+    {
         if ($this->auth::check()) {
             return false;
         }
 
-        if (! $token = Input('token')) {
+        if (!$token = Input('token')) {
             return false;
         }
 
         try {
             $user = Token::parse($token, true, 'login');
+            // Activate only after open link from mail
+            if (!$user->is_activated) {
+                $user->is_activated = true;
+                $user->save();
+            }
             $this->auth::login($user);
             $this->page['error'] = false;
             return $this->processRedirects();
-        } catch(\Exception $e) {
-            $this->page['error'] =  $e->getMessage();
+        } catch (\Exception $e) {
+            $this->page['error'] = $e->getMessage();
         }
     }
 
-    public function processRedirects() {
+    public function processRedirects()
+    {
         if ($intended = Cookie::get('passwordless_redirect')) {
             Cookie::queue(Cookie::forget('passwordless_redirect'));
             // make redirection host safe
@@ -154,24 +171,39 @@ class Account extends ComponentBase
             return Redirect::to(url($url['path']));
         }
 
-        switch($default = $this->property('redirect')) {
-            case '0': break;
-            case '': return Redirect::to($this->currentPageUrl());
-            default: return Redirect::to($default);
+        switch ($default = $this->property('redirect')) {
+            case '0':
+                break;
+            case '':
+                return Redirect::to($this->currentPageUrl());
+            default:
+                return Redirect::to($default);
         }
 
     }
 
-    public function sendLoginEmail($user, $base_url) {
+    public function sendLoginEmail($user, $base_url)
+    {
+        $expirationTime = Settings::get('token_expiration', 30);
+
         // Generate token
-        $token = Token::generate($user, 30, 'login');
+        $token = Token::generate($user, $expirationTime, 'login');
         $authentication_url = $base_url . '?token=' . $token;
         $email = $user->email;
+
+        $expiresAt = Carbon::now()->addMinutes($expirationTime)->addSecond();
+        $timeString = $expiresAt->diffForHumans([
+            'parts' => 1,  // Количество отображаемых частей (минуты, часы и т.д.)
+            'short' => false,  // Полный формат (minutes, hours)
+            'syntax' => Carbon::DIFF_RELATIVE_TO_NOW,  // Относительно текущего времени
+            'options' => Carbon::NO_ZERO_DIFF  // Показывать только минуты или часы
+        ]);
 
         // Send invitation email
         Mail::queue(
             $this->property('mail_template'),
-            compact('base_url', 'authentication_url'),
+
+            compact('base_url', 'authentication_url', 'timeString'),
             function ($message) use ($email) {
                 $message->to($email);
             }
@@ -199,16 +231,17 @@ class Account extends ComponentBase
     // API
     //
 
-    public function api() {
-        if (! $this->property('api')) {
+    public function api()
+    {
+        if (!$this->property('api')) {
             return false;
         }
 
-        if (! $query = Input::get('api')) {
+        if (!$query = Input::get('api')) {
             return false;
         }
 
-        if (! $this->auth::check()) {
+        if (!$this->auth::check()) {
             return response('Unauthorized. ', 401);
         }
 
@@ -221,7 +254,8 @@ class Account extends ComponentBase
         }
     }
 
-    public function apiInfo() {
+    public function apiInfo()
+    {
         $user = $this->auth::getUser();
 
         return Response::json([
@@ -237,27 +271,45 @@ class Account extends ComponentBase
      * Sends an authentication email to the user
      * @return array October AJAX response
      */
-    public function onRequestLogin() {
-
+    public function onRequestLogin()
+    {
         $rules = ['email' => 'required|email'];
-        $rules = $this->fireEvent('login_form_rules', [$rules])[0];
-        $validator = Validator::make(Input::only(array_keys($rules)), $rules);
-        $email = ['email' => $validator->validated()['email']];
+        $validator = Validator::make(Input::only('email'), $rules);
+
         if ($validator->fails()) {
-            return Redirect::to($this->currentPageUrl())->withErrors($validator);
+            throw new ValidationException($validator);
+        } else {
+            $eventValidatorRules = $this->fireEvent('login_form_rules');
+            $eventValidatorRules = array_key_exists(0, $eventValidatorRules) ? $eventValidatorRules[0] : null;
+
+            if (!empty($eventValidatorRules)) {
+                $eventValidator = Validator::make(Input::only(array_keys($eventValidatorRules)), $eventValidatorRules);
+
+                if ($eventValidator->fails()) {
+                    throw new ValidationException($eventValidator);
+                }
+            }
         }
 
-		$base_url = $this->currentPageUrl();
-		
+        $email = ['email' => $validator->validated()['email']];
+        $base_url = $this->currentPageUrl();
+
         // Get user
-        if (! $user = $this->model::where($email)->first()) {
+        if (!$user = $this->model::where($email)->first()) {
             if ($this->property('allow_registration')) {
-                $user = $this->model::create($email);
+                /* @var  $user User */
+                $user = new $this->model();
+                $user->fill($email);
+                $user->name = $user->username = $user->email;
+                $user->password = $user->password_confirmation = Str::random($this->model::getMinPasswordLength());
+                $user->created_ip_address = Input::ip();
+                $user->save();
+
             } else {
                 return ['#passwordless-login-form' => $this->renderPartial('@invited', compact('base_url'))];
             }
         }
-        
+
         $this->sendLoginEmail($user, $base_url);
         return ['#passwordless-login-form' => $this->renderPartial('@invited', compact('base_url'))];
     }
@@ -265,7 +317,8 @@ class Account extends ComponentBase
     /**
      * Signs out
      */
-    public function onLogout() {
+    public function onLogout()
+    {
         $this->auth::logout();
 
         return Redirect::refresh();
@@ -275,11 +328,13 @@ class Account extends ComponentBase
     // GraphQL
     //
 
-    public function resolvePasswordlessUser() {
+    public function resolvePasswordlessUser()
+    {
         return $this->auth::getUser();
     }
 
-    public function resolvePasswordlessLogout() {
+    public function resolvePasswordlessLogout()
+    {
         if ($user = $this->auth::getUser()) {
             $this->auth::logout();
             return $user;
@@ -288,14 +343,15 @@ class Account extends ComponentBase
         return null;
     }
 
-    public function resolvePasswordlessLoginRequest($root, $args) {
+    public function resolvePasswordlessLoginRequest($root, $args)
+    {
         $email = ['email' => $args['email']];
         $validator = Validator::make($email, ['email' => 'required|email']);
         if ($validator->fails()) {
             return 1; // invalid email
         }
 
-        if (! $user = $this->model::where($email)->first()) {
+        if (!$user = $this->model::where($email)->first()) {
             if ($this->property('allow_registration')) {
                 $user = $this->model::create($email);
             } else {
@@ -308,12 +364,13 @@ class Account extends ComponentBase
         return 0; // success
     }
 
-    public function resolvePasswordlessLogin($root, $args) {
+    public function resolvePasswordlessLogin($root, $args)
+    {
         try {
             $user = Token::parse($args['token'], true, 'login');
             $this->auth::login($user);
             return $user;
-        } catch(\Exception $e) {
+        } catch (\Exception $e) {
             return null;
         }
     }

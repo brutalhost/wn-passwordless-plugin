@@ -44,8 +44,11 @@ class Token extends Model
      * @param $expires Minutes or Carbon instance
      * @return $token
      */
-    public static function generate($user, $expires = 10, $scope = 'default')
+    public static function generate($user, $expires = null, $scope = 'default')
     {
+        if (is_null($expires)) {
+            $expires = Settings::get('token_expiration', 30);
+        }
         $identifier = str_random(12);
         $token = str_random(48);
 
